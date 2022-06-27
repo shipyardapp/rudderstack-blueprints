@@ -19,7 +19,6 @@ def get_args():
 
 
 def get_source_status(source_id, access_token):
-    access_token = "2AwmABMQwUbXLhViZfydcSDMjo1"
     api_headers = {
         'authorization': f"Bearer {access_token}",
         'Content-Type': 'application/json'
@@ -49,7 +48,6 @@ def get_source_status(source_id, access_token):
         if source_status_json.get('error'):
             print(f"sync for sourceId: {source_id} failed with error: {source_status_json['error']}")
             sys.exit(EXIT_CODE_SYNC_STATUS_ERROR)
-        status_code = EXIT_CODE_SYNC_STATUS_SUCCESS
     else:
         print(f"Sync for {source_id} is incomplete. Status {source_status_json['status']}")
         status_code = EXIT_CODE_SYNC_STATUS_INCOMPLETE
