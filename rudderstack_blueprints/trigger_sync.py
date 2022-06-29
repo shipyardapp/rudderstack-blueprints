@@ -3,11 +3,10 @@ import sys
 import requests
 import shipyard_utils as shipyard
 
-
-EXIT_CODE_INVALID_CREDENTIALS = 200
-EXIT_CODE_BAD_REQUEST = 201
-EXIT_CODE_SYNC_REFRESH_ERROR = 210
-EXIT_CODE_UNKNOWN_ERROR = 211
+try:
+    import errors
+except BaseException:
+    from . import errors
 
 
 def get_args():
@@ -27,17 +26,30 @@ def trigger_sync(source_id, access_token):
     trigger_sync_url = api_url + f"/{source_id}/start"
     # get response from API
     try:
-        trigger_sync_response = requests.get(trigger_sync_url, 
+        trigger_sync_response = requests.post(trigger_sync_url, 
                                            headers=api_headers)
         # check if successful, if not return error message
-        if trigger_sync_response.status_code == requests.codes.ok:
+        if trigger_sync_response.status_code  in (200, 204, 201):
             print(f"Trigger sync for Source ID: {source_id} successful")
+
+        elif trigger_sync_response.status_code == 409:
+            print(f"Sync job for Source ID: {source_id} is already running")
+            sys.exit(errors.EXIT_CODE_SYNC_ALREADY_RUNNING)
+
+        elif trigger_sync_response.status_code == 401:
+            print(f"Trigger sync failed for Source {source_id} due to Invalid Credentials")
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+
+        elif trigger_sync_response.status_code == 500:
+            print(f"Trigger sync failed. Check if Source {source_id} exists")
+            sys.exit(errors.EXIT_CODE_SYNC_INVALID_SOURCE_ID)
+
         else:
             print(f"Trigger sync failed. Error code:{trigger_sync_response.status_code}")
-            sys.exit(EXIT_CODE_BAD_REQUEST)
+            sys.exit(errors.EXIT_CODE_BAD_REQUEST)
     except Exception as e:
         print(f"Source {source_id} trigger sync failed due to: {e}")
-        sys.exit(EXIT_CODE_UNKNOWN_ERROR)
+        sys.exit(errors.EXIT_CODE_UNKNOWN_ERROR)
 
 
 def main():
