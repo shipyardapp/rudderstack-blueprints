@@ -31,6 +31,12 @@ def get_source_data(source_id, access_token):
         # check if successful, if not return error message
         if source_status_response.status_code == requests.codes.ok:
             source_status_json = source_status_response.json()
+        elif source_status_response.status_code == 401:
+            print("Invalid Credentials. Please check access token")
+            sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
+        elif source_status_response.status_code == 500:
+            print(f"Failed to run status check. Invalid Source id: {source_id}")
+            sys.exit(errors.EXIT_CODE_SYNC_INVALID_SOURCE_ID)
         else:
             print(f"Source status check failed. Reason: {source_status_response.text}")
             sys.exit(errors.EXIT_CODE_BAD_REQUEST)
