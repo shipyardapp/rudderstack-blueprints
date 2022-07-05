@@ -2,6 +2,7 @@ import sys
 import argparse
 import requests
 import shipyard_utils as shipyard
+import code
 try:
     import errors
 except BaseException:
@@ -35,7 +36,7 @@ def get_source_data(source_id, access_token):
         elif source_status_response.status_code == 401:
             print("Invalid Credentials. Please check access token")
             sys.exit(errors.EXIT_CODE_INVALID_CREDENTIALS)
-        elif source_status_response.status_code == 500:
+        elif source_status_response.status_code in [404, 500]:
             print(
                 f"Failed to run status check. Invalid Source id: {source_id}")
             sys.exit(errors.EXIT_CODE_SYNC_INVALID_SOURCE_ID)
@@ -49,19 +50,25 @@ def get_source_data(source_id, access_token):
     return source_status_json
 
 
-def handle_source_data(source_data, source_id):
-    status_code = errors.EXIT_CODE_FINAL_STATUS_SUCCESS
+def determine_run_status(source_data, source_id):
     if source_data['status'] == 'finished':
-        # check if startedAt
-        print("Successfully managed to check sync")
         if source_data.get('error'):
             print(
-                f"sync for sourceId: {source_id} failed with error: {source_data['error']}")
+                f"Rudderstack reports that the most recent run for source {source_id} errored with the following message: {source_data['error']}")
             sys.exit(errors.EXIT_CODE_FINAL_STATUS_ERRORED)
-    else:
+        else:
+            print(
+                f"Rudderstack reports that the most recent run for source {source_id} finished without errors.")
+            status_code = errors.EXIT_CODE_FINAL_STATUS_SUCCESS
+    elif source_data['status'] == 'processing':
         print(
-            f"Sync for {source_id} is incomplete. Status {source_data['status']}")
+            f"Rudderstack reports that the most recent run for source {source_id} is still processing.")
         status_code = errors.EXIT_CODE_FINAL_STATUS_INCOMPLETE
+    else:
+
+        print(
+            f"Sync for {source_id} is incomplete or unknown. Status {source_data['status']}")
+        status_code = errors.EXIT_CODE_UNKNOWN_STATUS
     return status_code
 
 
@@ -84,6 +91,7 @@ def main():
 
     # run check sync status
     sync_status_data = get_source_data(source_id, access_token)
+    # code.interact(local=locals())
     # save sync run data as json file
     sync_run_data_file_name = shipyard.files.combine_folder_and_file_name(
         artifact_subfolder_paths['responses'],
@@ -92,7 +100,7 @@ def main():
         sync_status_data, sync_run_data_file_name)
 
     # get sync status exit code and exit
-    exit_code_status = handle_source_data(sync_status_data, source_id)
+    exit_code_status = determine_run_status(sync_status_data, source_id)
     sys.exit(exit_code_status)
 
 
